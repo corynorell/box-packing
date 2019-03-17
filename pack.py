@@ -3,32 +3,32 @@ import csv
 import sys
 import optparse
 
-# These would typically be parsed as options
-boxVolume = 1.58 
-csvFile = 'items.csv'
-
 ###############################################
 # CLASSES
 ###############################################
 
 class Box:
-    def __init__(self, volume, id):
+    def __init__(self, volume, id, itemGroup = ''):
         self.items = []
         self.id = int(id)
         self.volume = volume
         self.usedSpace = 0
+        self.itemGroup = itemGroup
 
     def addItem(self, item):
         self.items.append(item)
         self.usedSpace += item.volume
 
-    def listItems(self):
+    def listItems(self, groupItems):
         itemIds = []
 
         for item in self.items:
             itemIds.append(item.id)
 
-        print "Box %s contains the following items: %s" % (self.id, itemIds)
+        if groupItems:
+            print "Box %s (Group %s) contains the following items: %s" % (self.id, self.itemGroup, itemIds)
+        else:
+            print "Box %s contains the following items: %s" % (self.id, itemIds)
 
 
 class Item:
@@ -50,6 +50,7 @@ def parseArgs():
     parser.add_option("-f", "--file", default="items.csv", type="string", metavar="<csv-file>", help="The CSV file containing items to be packed.")
     parser.add_option("-v", "--volume", default=1.58, type="float", metavar="<box-volume>", help="The storage capacity (volume) of each box.")
     parser.add_option("-r", "--returnBoxes", default=False, action="store_true", help="If set, returns the list of packed boxes instead of printing result.")
+    parser.add_option("-g", "--group", default=False, action="store_true", help="If set, restricts the boxes to one group of items per box.")
 
     (options, args) = parser.parse_args()
 
@@ -59,7 +60,7 @@ def parseArgs():
     return options
     
 
-def pack(itemList, boxVolume, returnBoxes = False):
+def pack(itemList, boxVolume, returnBoxes = False, groupItems = False):
     '''Pack specified items into boxes
 
     Keyword Arguments:
@@ -80,11 +81,19 @@ def pack(itemList, boxVolume, returnBoxes = False):
         for box in boxes:
             spaceToBeUsed = box.usedSpace + itemVolume
             if (spaceToBeUsed <= box.volume):
-                box.addItem(item)
-                break
+                if groupItems:
+                    if item.group == box.itemGroup:
+                        box.addItem(item)
+                        break
+                else:
+                    box.addItem(item)
+                    break
         else:
             # Item didn't fit into any existing box, start another
-            newBox = Box(boxVolume, boxCount)
+            if groupItems:
+                newBox = Box(boxVolume, boxCount, item.group)
+            else:
+                newBox = Box(boxVolume, boxCount)
             newBox.addItem(item)
             boxes.append(newBox)
             boxCount += 1
@@ -104,7 +113,7 @@ def pack(itemList, boxVolume, returnBoxes = False):
         averageEfficiency = efficiencyTotal / len(boxes) * 100
 
     for box in boxes:
-        box.listItems()
+        box.listItems(groupItems)
 
     print "Boxes needed: %s | Average efficiency achieved: %s %%" % (totalBoxes, averageEfficiency)
 
@@ -141,10 +150,11 @@ def generateList(csvFile):
     # Catch incorrect file name
     except IOError:
         print 'The specified file was not found.'
+        sys.exit(1)
 
 
 ###############################################
 # ENTRY POINT
 ###############################################
 options = parseArgs()
-boxes = pack(options.file, options.volume, options.returnBoxes)
+boxes = pack(options.file, options.volume, options.returnBoxes, options.group)
