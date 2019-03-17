@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import csv
 import sys
+import optparse
 
 # These would typically be parsed as options
 boxVolume = 1.58 
@@ -11,28 +12,52 @@ csvFile = 'items.csv'
 ###############################################
 
 class Box:
-    def __init__(self, volume):
+    def __init__(self, volume, id):
         self.items = []
+        self.id = int(id)
         self.volume = volume
         self.usedSpace = 0
 
     def addItem(self, item):
-        itemVolume = float(item.volume)
-
         self.items.append(item)
-        self.usedSpace += itemVolume
+        self.usedSpace += item.volume
+
+    def listItems(self):
+        itemIds = []
+
+        for item in self.items:
+            itemIds.append(item.id)
+
+        print "Box %s contains the following items: %s" % (self.id, itemIds)
 
 
 class Item:
     def __init__(self, id, group, volume):
         self.id = id
         self.group = group
-        self.volume = volume
+        self.volume = float(volume)
 
 
 ###############################################
 # FUNCTIONS
 ###############################################
+
+def parseArgs():
+    global options
+
+    parser = optparse.OptionParser()
+
+    parser.add_option("-f", "--file", default="items.csv", type="string", metavar="<csv-file>", help="The CSV file containing items to be packed.")
+    parser.add_option("-v", "--volume", default=1.58, type="float", metavar="<box-volume>", help="The storage capacity (volume) of each box.")
+    parser.add_option("-r", "--returnBoxes", default=False, action="store_true", help="If set, returns the list of packed boxes instead of printing result.")
+
+    (options, args) = parser.parse_args()
+
+    if not options.file:
+        parser.error("Please specify a CSV file to be parsed.")
+
+    return options
+    
 
 def pack(itemList, boxVolume, returnBoxes = False):
     '''Pack specified items into boxes
@@ -41,12 +66,13 @@ def pack(itemList, boxVolume, returnBoxes = False):
     
     itemList    -- list of items to be packed into boxes
     boxVolume   -- volume constraint of every box
-    returnBoxes -- return box list instead of printing relevant data 
+    returnBoxes -- return box list instead of printing relevant data
     '''
 
+    itemList = generateList(itemList)
+
     boxes = []
-    initialBox = Box(boxVolume)
-    boxes.append(initialBox)
+    boxCount = 1
 
     for item in itemList:
         itemVolume = float(item.volume)
@@ -58,9 +84,10 @@ def pack(itemList, boxVolume, returnBoxes = False):
                 break
         else:
             # Item didn't fit into any existing box, start another
-            newBox = Box(boxVolume)
+            newBox = Box(boxVolume, boxCount)
             newBox.addItem(item)
             boxes.append(newBox)
+            boxCount += 1
 
     if returnBoxes:
         # Do any desired post processing (json encode) and return
@@ -76,7 +103,10 @@ def pack(itemList, boxVolume, returnBoxes = False):
 
         averageEfficiency = efficiencyTotal / len(boxes) * 100
 
-        print "Boxes needed: %s | Average efficiency achieved: %s %%" % (totalBoxes, averageEfficiency)
+    for box in boxes:
+        box.listItems()
+
+    print "Boxes needed: %s | Average efficiency achieved: %s %%" % (totalBoxes, averageEfficiency)
 
 def generateList(csvFile):
     '''Read specified CSV file and convert to list of objects
@@ -116,7 +146,5 @@ def generateList(csvFile):
 ###############################################
 # ENTRY POINT
 ###############################################
-
-itemList = generateList(csvFile)
-
-boxes = pack(itemList, boxVolume)
+options = parseArgs()
+boxes = pack(options.file, options.volume, options.returnBoxes)
