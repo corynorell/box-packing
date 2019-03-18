@@ -158,3 +158,5 @@ def generateList(csvFile):
 ###############################################
 options = parseArgs()
 boxes = pack(options.file, options.volume, options.returnBoxes, options.group)
+
+sys.exit(0)
